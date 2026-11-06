@@ -62,6 +62,7 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--line)}
 .tab{background:none;border:0;border-bottom:3px solid transparent;padding:8px 6px;font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.ordem{margin-left:auto;align-self:center;background:var(--chip);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;white-space:nowrap;cursor:pointer}
 .list{flex:1;overflow:auto;padding:6px 8px 12px;display:flex;flex-direction:column;gap:2px;min-height:0}
 .item{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;text-align:left;background:transparent;border:1px solid transparent;border-radius:8px;padding:8px 10px}
 .item:hover{background:var(--chip)}
@@ -156,6 +157,7 @@ main{position:relative;min-width:0;min-height:0}
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tLoja" aria-selected="true">Na loja</button>
       <button class="tab" role="tab" id="tRet" aria-selected="false">Retirados (30 dias)</button>
+      <button class="ordem" id="bOrdem" type="button" title="Ordem da lista: OS antigas ou novas primeiro"></button>
     </div>
     <div class="list" id="list"></div>
     <section class="detail" id="detail" hidden></section>
@@ -479,12 +481,15 @@ function chips(){
 $('chips').addEventListener('click',ev=>{ const b=ev.target.closest('.chip'); if(!b) return; const k=b.dataset.st;
   if(filtro.size===Object.keys(STATUS).length){ filtro=new Set([k]); } else if(filtro.has(k)){ filtro.delete(k); if(!filtro.size) filtro=new Set(Object.keys(STATUS)); } else filtro.add(k);
   tudo(); });
+let ordem=(()=>{ try{ return localStorage.getItem('mapa_ordem')||'antigas'; }catch(e){ return 'antigas'; } })();
 function lista(){
   const t=$('q').value.trim().toLowerCase();
   let rows = aba==='loja' ? ativos().filter(r=>filtro.has(r.st)) : retirados();
   if(lugarSel && !t) rows=rows.filter(r=>r.local===lugarSel);
   if(t) rows=rows.filter(r=>r.os.includes(t)||r.ap.toLowerCase().includes(t)||LUGAR[r.local].curto.toLowerCase()===t);
-  rows.sort((a,b)=> aba==='loja' ? new Date(a.ent)-new Date(b.ent) : new Date(b.ret)-new Date(a.ret));
+  const num=o=>{ const n=parseInt(String(o).replace(/\D/g,''),10); return isNaN(n)?Infinity:n; };
+  rows.sort((a,b)=> aba==='loja' ? (ordem==='antigas' ? num(a.os)-num(b.os) : num(b.os)-num(a.os)) || new Date(a.ent)-new Date(b.ent) : new Date(b.ret)-new Date(a.ret));
+  $('bOrdem').hidden = aba!=='loja'; $('bOrdem').textContent = ordem==='antigas' ? '↑ Antigas' : '↓ Novas';
   $('list').innerHTML = rows.length ? rows.map(r=>`<button class="item${r.os===selOS?' sel':''}" data-os="${r.os}">
       <i class="dot" style="background:var(${STATUS[r.st].css})"></i><span class="os">OS ${esc(r.os)}</span><span class="loc">${r.ret?'Entregue':esc(LUGAR[r.local].curto)}</span>
       <span class="sub">${esc(r.ap)} · ${r.ret?'retirado '+fmt(r.ret):STATUS[r.st].nome.toLowerCase()+' '+ha(r.stDt)}</span></button>`).join('')
@@ -493,6 +498,7 @@ function lista(){
 $('list').addEventListener('click',ev=>{ const b=ev.target.closest('.item'); if(b) selecionar(b.dataset.os); });
 $('q').addEventListener('input',()=>{ lugarSel=null; lista(); });
 $('q').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ const f=$('list').querySelector('.item'); if(f) selecionar(f.dataset.os); }});
+$('bOrdem').onclick=()=>{ ordem = ordem==='antigas'?'novas':'antigas'; try{ localStorage.setItem('mapa_ordem',ordem); }catch(e){} lista(); };
 $('tLoja').onclick=()=>{aba='loja';$('tLoja').setAttribute('aria-selected','true');$('tRet').setAttribute('aria-selected','false');selOS=null;tudo();};
 $('tRet').onclick=()=>{aba='ret';$('tRet').setAttribute('aria-selected','true');$('tLoja').setAttribute('aria-selected','false');selOS=null;tudo();};
 
