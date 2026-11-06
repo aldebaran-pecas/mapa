@@ -91,6 +91,8 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .thumb{width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid var(--line);cursor:pointer;background:var(--chip)}
 .addph{width:64px;height:64px;border-radius:6px;border:1px dashed var(--muted);display:grid;place-items:center;font-size:12px;color:var(--muted);text-align:center;cursor:pointer;line-height:1.1}
 .row{display:flex;gap:8px;flex-wrap:wrap}
+.fotobtns{display:flex;gap:8px;margin-bottom:8px}
+.fotobtns .btn{flex:1;text-align:center;padding:10px 12px;cursor:pointer}
 .confirm{background:var(--chip);border-radius:8px;padding:10px;display:grid;gap:8px;font-size:14px}
 
 main{position:relative;min-width:0;min-height:0}
@@ -177,8 +179,8 @@ main{position:relative;min-width:0;min-height:0}
     <div class="field"><label for="fLocal">Onde foi guardado</label>
       <div class="pick"><span class="loc" id="fLocShow">—</span><button type="button" class="btn" id="fPick">Escolher no mapa</button></div>
       <select id="fLocal" aria-label="Lugar"></select></div>
-    <div class="field"><label for="fFotos">Fotos de como chegou</label>
-      <input id="fFotos" type="file" accept="image/*" multiple>
+    <div class="field"><label>Fotos de como chegou</label>
+      <div class="fotobtns"><label class="btn">📷 Câmera<input id="fFotosCam" type="file" accept="image/*" capture="environment" hidden></label><label class="btn">🖼 Galeria<input id="fFotos" type="file" accept="image/*" multiple hidden></label></div>
       <div class="thumbs" id="fThumbs"></div></div>
     <p class="err" id="fErr" hidden></p>
     <div class="row"><button class="btn primary" type="submit" id="fSalvar">Salvar</button><button class="btn" type="button" id="fCancelar">Cancelar</button></div>
@@ -512,7 +514,7 @@ function detalhe0(){
     <div class="stbtns">${Object.entries(STATUS).map(([k,s])=>`<button class="stb" data-st="${k}" aria-pressed="${r.st===k}" style="color:var(${s.css})"><i class="dot" style="background:var(${s.css})"></i><span style="color:var(--fg)">${s.nome}</span></button>`).join('')}</div>
     <div class="meta"><span>Entrou <b>${fmt(r.ent)}</b> (${ha(r.ent)})</span><span>Status desde <b>${fmt(r.stDt)}</b></span></div>
     <span class="k">Fotos da entrada</span>
-    <div class="thumbs">${fotos}<label class="addph">+ foto<input type="file" accept="image/*" multiple hidden id="dFotos"></label></div>
+    <div class="thumbs">${fotos}<label class="addph">📷<br>câmera<input type="file" accept="image/*" capture="environment" hidden id="dFotosCam"></label><label class="addph">🖼<br>galeria<input type="file" accept="image/*" multiple hidden id="dFotos"></label></div>
     ${confirmando?`<div class="confirm">Confirmar que a OS ${esc(r.os)} foi entregue ao cliente? O aparelho sai do mapa e as fotos ficam guardadas por 30 dias.
       <div class="row"><button class="btn danger" id="dSim">Confirmar entrega</button><button class="btn" id="dNao">Cancelar</button></div></div>`
     :`<div class="row"><button class="btn" id="dMover">Mudar de lugar</button><button class="btn primary" id="dEntregar">Entregue ao cliente</button></div>`}`;
@@ -526,7 +528,7 @@ $('detail').addEventListener('click',async ev=>{
   if(ev.target.id==='dSim'){ r.ret=new Date().toISOString(); await API.salvar(r); confirmando=false; selOS=null; tudo(); }
   if(ev.target.id==='dMover'){ iniciarEscolha(id=>{ r.local=id; API.salvar(r); tudo(); focarLugar(id); }); }
 });
-$('detail').addEventListener('change',async ev=>{ if(ev.target.id!=='dFotos') return; const r=registro(selOS);
+$('detail').addEventListener('change',async ev=>{ if(ev.target.id!=='dFotos'&&ev.target.id!=='dFotosCam') return; const r=registro(selOS);
   let pri=null; for(const f of ev.target.files){ const d=await reduzir(f); pri=pri||d; r.fotos.push(await API.foto(r.os, d)); } await API.salvar(r); if(pri) await criarMini(r.os, pri, true); detalhe(); montarCaixas(); destacar(); });
 
 function tudo(){ chips(); lista(); detalhe(); montarCaixas(); destacar(); }
@@ -560,8 +562,9 @@ $('fAp').addEventListener('input',()=>{ marcaTipo(); if(autoLocal) setLocal(suge
 $('fLocal').addEventListener('change',()=>{ autoLocal=false; setLocal($('fLocal').value); });
 $('bReceber').onclick=()=>{ $('fReceber').reset(); novasFotos=[]; $('fThumbs').innerHTML=''; $('fErr').hidden=true; autoLocal=true; marcaTipo(); opcoesLocal(); setLocal(''); $('ovReceber').hidden=false; setTimeout(()=>$('fOS').focus(),50); };
 $('fCancelar').onclick=()=>{ $('ovReceber').hidden=true; };
-$('fFotos').addEventListener('change',async ev=>{ for(const f of ev.target.files){ novasFotos.push(await reduzir(f)); } ev.target.value='';
-  $('fThumbs').innerHTML=novasFotos.map((f,i)=>`<img class="thumb" src="${f}" alt="Foto ${i+1}">`).join(''); });
+const addFotosForm=async ev=>{ for(const f of ev.target.files){ novasFotos.push(await reduzir(f)); } ev.target.value='';
+  $('fThumbs').innerHTML=novasFotos.map((f,i)=>`<img class="thumb" src="${f}" alt="Foto ${i+1}">`).join(''); };
+$('fFotos').addEventListener('change',addFotosForm); $('fFotosCam').addEventListener('change',addFotosForm);
 $('fPick').onclick=()=>{ $('ovReceber').hidden=true; iniciarEscolha(id=>{ autoLocal=false; setLocal(id); $('ovReceber').hidden=false; }, ()=>{ $('ovReceber').hidden=false; }); };
 $('fReceber').addEventListener('submit',async ev=>{
   ev.preventDefault();
