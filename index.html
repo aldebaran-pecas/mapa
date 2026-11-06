@@ -300,12 +300,13 @@ const FOTO_CACHE={};
 const MINI={}, MIMG={}, TEXC={};
 try{ Object.assign(MINI, JSON.parse(localStorage.getItem('mapa_minis_v2')||'{}')); }catch(e){}
 function guardarMinis(){ try{ const vivos=new Set(DADOS.filter(r=>!r.ret).map(r=>r.os)); const o={}; for(const k in MINI) if(vivos.has(k)) o[k]=MINI[k]; localStorage.setItem('mapa_minis_v2',JSON.stringify(o)); }catch(e){} }
+const FOTO_NAS_CAIXAS = false; // true = mostra a foto de entrada nos quadrados do mapa
 function fazerMini(dataUrl){ return new Promise(res=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,320/Math.max(img.width,img.height)), c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.72)); }; img.onerror=()=>res(null); img.src=dataUrl; }); }
 function imgMini(os){ const im=MIMG[os]; if(im) return (im.complete&&im.naturalWidth)?im:null; if(!MINI[os]) return null;
   const n=new Image(); n.onload=()=>{ montarCaixas(); destacar(); }; n.src=MINI[os]; MIMG[os]=n; return null; }
-async function criarMini(os, dataUrl, enviar){ if(MINI[os]||!dataUrl) return; const m=await fazerMini(dataUrl); if(!m) return; MINI[os]=m; guardarMinis();
+async function criarMini(os, dataUrl, enviar){ if(!FOTO_NAS_CAIXAS) return; if(MINI[os]||!dataUrl) return; const m=await fazerMini(dataUrl); if(!m) return; MINI[os]=m; guardarMinis();
   const r=DADOS.find(x=>x.os===os&&!x.ret); if(r) r.temMini=true; if(enviar&&NO_GOOGLE){ try{ await gas('salvarMini',os,m); }catch(e){} } }
-async function sincMinis(){ if(!NO_GOOGLE) return; const at=DADOS.filter(r=>!r.ret);
+async function sincMinis(){ if(!FOTO_NAS_CAIXAS||!NO_GOOGLE) return; const at=DADOS.filter(r=>!r.ret);
   const faltam=at.filter(r=>r.temMini&&!MINI[r.os]).map(r=>r.os);
   if(faltam.length){ try{ Object.assign(MINI, await gas('miniaturas',faltam)); guardarMinis(); montarCaixas(); destacar(); }catch(e){} }
   const semMini=at.filter(r=>!r.temMini&&!MINI[r.os]&&r.fotos.length).slice(0,3);
@@ -316,7 +317,7 @@ function texFoto(os,img,w,h,cor){ const H=256, W=Math.max(64,Math.min(768,Math.r
   const q=Math.min(img.width/W,img.height/H), sw=W*q, sh=H*q; g.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,0,0,W,H);
   const b=Math.max(3,Math.round(H*.022)); g.lineWidth=b*2; g.strokeStyle=cor; g.strokeRect(0,0,W,H);
   const t=new THREE.CanvasTexture(c); t.anisotropy=4; TEXC[k]=t; return t; }
-function matsDe(r,w,h,d){ const base=matDe(r); const img=imgMini(r.os); if(!img) return base;
+function matsDe(r,w,h,d){ const base=matDe(r); if(!FOTO_NAS_CAIXAS) return base; const img=imgMini(r.os); if(!img) return base;
   const sel=r.os===selOS, dim=!sel&&!filtro.has(r.st), cor='#'+STATUS[r.st].hex.toString(16).padStart(6,'0');
   const mk=(fw)=>new THREE.MeshStandardMaterial({map:texFoto(r.os,img,fw,h,cor),roughness:.75,transparent:dim,opacity:dim?.22:1,emissive:sel?0x2a2a2a:0x000000});
   const frente=mk(w), lado=mk(d); return [lado,lado,base,base,frente,frente]; }
