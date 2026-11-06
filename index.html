@@ -55,6 +55,9 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:transparent}
 .chip[aria-pressed="false"]{opacity:.45}
 .chip b{font-family:var(--f-mono);font-size:12px}
+.tipos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tipo{font:inherit;font-size:14px;padding:7px 12px;min-height:36px;border-radius:999px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tipo.on{background:var(--fg);color:var(--panel);border-color:var(--fg)}
 .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
 .tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--line)}
 .tab{background:none;border:0;border-bottom:3px solid transparent;padding:8px 6px;font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
@@ -168,8 +171,8 @@ main{position:relative;min-width:0;min-height:0}
   <form class="sheet" id="fReceber" novalidate>
     <h3 id="fTitulo">Receber aparelho</h3>
     <div class="field"><label for="fOS">Número da OS</label><input id="fOS" inputmode="numeric" autocomplete="off" required></div>
-    <div class="field"><label for="fAp">Aparelho</label><input id="fAp" list="tipos" autocomplete="off" placeholder="Ex.: Micro-ondas" required>
-      <datalist id="tipos"></datalist></div>
+    <div class="field"><label for="fAp">Aparelho</label><input id="fAp" autocomplete="off" placeholder="Ex.: Micro-ondas" required>
+      <div class="tipos" id="tipos" role="group" aria-label="Tipos de aparelho"></div></div>
     <div class="field"><label for="fLocal">Onde foi guardado</label>
       <div class="pick"><span class="loc" id="fLocShow">—</span><button type="button" class="btn" id="fPick">Escolher no mapa</button></div>
       <select id="fLocal" aria-label="Lugar"></select></div>
@@ -535,7 +538,9 @@ $('vAnt').onclick=()=>abrirFoto(vList,(vI-1+vList.length)%vList.length);
 $('vProx').onclick=()=>abrirFoto(vList,(vI+1)%vList.length);
 
 // =================== Receber aparelho ===================
-$('tipos').innerHTML=TIPOS.map(t=>`<option value="${t}">`).join('');
+$('tipos').innerHTML=TIPOS.map(t=>`<button type="button" class="tipo">${t}</button>`).join('');
+function marcaTipo(){ const v=$('fAp').value.trim().toLowerCase(); $('tipos').querySelectorAll('.tipo').forEach(b=>b.classList.toggle('on',b.textContent.toLowerCase()===v)); }
+$('tipos').addEventListener('click',ev=>{ const b=ev.target.closest('.tipo'); if(!b) return; $('fAp').value=b.textContent; $('fAp').dispatchEvent(new Event('input')); });
 let novasFotos=[];
 function ocupacao(id){ return ativos().filter(r=>r.local===id).length; }
 function opcoesLocal(){
@@ -549,9 +554,9 @@ function sugerir(ap){ return '';
 }
 function setLocal(id){ $('fLocal').value=id; $('fLocShow').textContent=id?LUGAR[id].desc:'—'; }
 let autoLocal=true;
-$('fAp').addEventListener('input',()=>{ if(autoLocal) setLocal(sugerir($('fAp').value)); });
+$('fAp').addEventListener('input',()=>{ marcaTipo(); if(autoLocal) setLocal(sugerir($('fAp').value)); });
 $('fLocal').addEventListener('change',()=>{ autoLocal=false; setLocal($('fLocal').value); });
-$('bReceber').onclick=()=>{ $('fReceber').reset(); novasFotos=[]; $('fThumbs').innerHTML=''; $('fErr').hidden=true; autoLocal=true; opcoesLocal(); setLocal(''); $('ovReceber').hidden=false; setTimeout(()=>$('fOS').focus(),50); };
+$('bReceber').onclick=()=>{ $('fReceber').reset(); novasFotos=[]; $('fThumbs').innerHTML=''; $('fErr').hidden=true; autoLocal=true; marcaTipo(); opcoesLocal(); setLocal(''); $('ovReceber').hidden=false; setTimeout(()=>$('fOS').focus(),50); };
 $('fCancelar').onclick=()=>{ $('ovReceber').hidden=true; };
 $('fFotos').addEventListener('change',async ev=>{ for(const f of ev.target.files){ novasFotos.push(await reduzir(f)); } ev.target.value='';
   $('fThumbs').innerHTML=novasFotos.map((f,i)=>`<img class="thumb" src="${f}" alt="Foto ${i+1}">`).join(''); });
