@@ -293,6 +293,30 @@ const API = NO_GOOGLE ? {
   async foto(os, dataUrl){ return dataUrl; },
 };
 const FOTO_CACHE={};
+// ---- Miniaturas das fotos no mapa 3D ----
+const MINI={}, MIMG={}, TEXC={};
+try{ Object.assign(MINI, JSON.parse(localStorage.getItem('mapa_minis')||'{}')); }catch(e){}
+function guardarMinis(){ try{ const vivos=new Set(DADOS.filter(r=>!r.ret).map(r=>r.os)); const o={}; for(const k in MINI) if(vivos.has(k)) o[k]=MINI[k]; localStorage.setItem('mapa_minis',JSON.stringify(o)); }catch(e){} }
+function fazerMini(dataUrl){ return new Promise(res=>{ const img=new Image(); img.onload=()=>{ const S=256,c=document.createElement('canvas'); c.width=c.height=S; const g=c.getContext('2d'); const q=Math.min(img.width,img.height); g.drawImage(img,(img.width-q)/2,(img.height-q)/2,q,q,0,0,S,S); res(c.toDataURL('image/jpeg',.72)); }; img.onerror=()=>res(null); img.src=dataUrl; }); }
+function imgMini(os){ const im=MIMG[os]; if(im) return (im.complete&&im.naturalWidth)?im:null; if(!MINI[os]) return null;
+  const n=new Image(); n.onload=()=>{ montarCaixas(); destacar(); }; n.src=MINI[os]; MIMG[os]=n; return null; }
+async function criarMini(os, dataUrl, enviar){ if(MINI[os]||!dataUrl) return; const m=await fazerMini(dataUrl); if(!m) return; MINI[os]=m; guardarMinis();
+  const r=DADOS.find(x=>x.os===os&&!x.ret); if(r) r.temMini=true; if(enviar&&NO_GOOGLE){ try{ await gas('salvarMini',os,m); }catch(e){} } }
+async function sincMinis(){ if(!NO_GOOGLE) return; const at=DADOS.filter(r=>!r.ret);
+  const faltam=at.filter(r=>r.temMini&&!MINI[r.os]).map(r=>r.os);
+  if(faltam.length){ try{ Object.assign(MINI, await gas('miniaturas',faltam)); guardarMinis(); montarCaixas(); destacar(); }catch(e){} }
+  const semMini=at.filter(r=>!r.temMini&&!MINI[r.os]&&r.fotos.length).slice(0,3);
+  for(const r of semMini){ try{ await criarMini(r.os, await srcFoto(r.fotos[0]), true); }catch(e){} }
+  if(semMini.length){ montarCaixas(); destacar(); } }
+function texFoto(os,img,w,h,cor){ const H=256, W=Math.max(64,Math.min(768,Math.round(H*w/h))); const k=os+'|'+cor+'|'+W;
+  if(TEXC[k]) return TEXC[k]; const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d');
+  const q=Math.min(img.width/W,img.height/H), sw=W*q, sh=H*q; g.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,0,0,W,H);
+  const b=Math.round(H*.06); g.lineWidth=b*2; g.strokeStyle=cor; g.strokeRect(0,0,W,H);
+  const t=new THREE.CanvasTexture(c); t.anisotropy=4; TEXC[k]=t; return t; }
+function matsDe(r,w,h,d){ const base=matDe(r); const img=imgMini(r.os); if(!img) return base;
+  const sel=r.os===selOS, dim=!sel&&!filtro.has(r.st), cor='#'+STATUS[r.st].hex.toString(16).padStart(6,'0');
+  const mk=(fw)=>new THREE.MeshStandardMaterial({map:texFoto(r.os,img,fw,h,cor),roughness:.75,transparent:dim,opacity:dim?.22:1,emissive:sel?0x2a2a2a:0x000000});
+  const frente=mk(w), lado=mk(d); return [lado,lado,base,base,frente,frente]; }
 function carregarFotos(){ document.querySelectorAll('img.thumb[data-id]').forEach(async img=>{ const id=img.dataset.id;
   if(id.startsWith('data:')){ img.src=id; return; }
   if(!FOTO_CACHE[id]) FOTO_CACHE[id]=gas('lerFoto',id);
@@ -396,13 +420,13 @@ function montarCaixas(){
     if(L.tipo==='nicho'){
       const e=L.est, empilha=L.cap===1 && lista.length>1, n=empilha?1:Math.max(lista.length,L.cap), bw=(L.cw-.04)/n, bd=e.d*.75;
       const bh = empilha ? Math.min((L.hgt*.92)/lista.length, .34) : Math.min(L.hgt*.78,.34);
-      lista.forEach((r,i)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(bw-.03,bh-(empilha?.015:0),bd),matDe(r));
+      lista.forEach((r,i)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(bw-.03,bh-(empilha?.015:0),bd),matsDe(r,bw-.03,bh-(empilha?.015:0),bd));
         if(empilha) m.position.set(L.x, L.y+.013+bh/2+i*bh, 0); else m.position.set(L.x-L.cw/2+.02+bw/2+i*bw, L.y+.013+bh/2, 0); m.userData.os=r.os; e.grupo.add(m); m.userData.parent=e.grupo; caixas[r.os]=m; });
     } else {
       const z=L.z, ih=z.item[1], w=z.x1-z.x0, d=z.z1-z.z0, n=Math.max(lista.length,Math.min(L.cap,6));
       let cols=Math.max(1,Math.round(Math.sqrt(n*w/d))); cols=Math.min(cols,n); const rows=Math.ceil(n/cols);
       const cw=(w-.06)/cols, cdp=(d-.06)/rows, bw=Math.min(z.item[0],cw-.05), bd=Math.min(z.item[2],cdp-.05);
-      lista.forEach((r,i)=>{ const col=i%cols, row=Math.floor(i/cols); const m=new THREE.Mesh(new THREE.BoxGeometry(bw,ih,bd),matDe(r));
+      lista.forEach((r,i)=>{ const col=i%cols, row=Math.floor(i/cols); const m=new THREE.Mesh(new THREE.BoxGeometry(bw,ih,bd),matsDe(r,bw,ih,bd));
         m.position.set(z.x0+.03+cw/2+col*cw, ih/2, z.z0+.03+cdp/2+row*cdp); m.userData.os=r.os; itemGroup.add(m); caixas[r.os]=m; });
     }
   });
@@ -498,7 +522,7 @@ $('detail').addEventListener('click',async ev=>{
   if(ev.target.id==='dMover'){ iniciarEscolha(id=>{ r.local=id; API.salvar(r); tudo(); focarLugar(id); }); }
 });
 $('detail').addEventListener('change',async ev=>{ if(ev.target.id!=='dFotos') return; const r=registro(selOS);
-  for(const f of ev.target.files){ r.fotos.push(await API.foto(r.os, await reduzir(f))); } await API.salvar(r); detalhe(); });
+  let pri=null; for(const f of ev.target.files){ const d=await reduzir(f); pri=pri||d; r.fotos.push(await API.foto(r.os, d)); } await API.salvar(r); if(pri) await criarMini(r.os, pri, true); detalhe(); montarCaixas(); destacar(); });
 
 function tudo(){ chips(); lista(); detalhe(); montarCaixas(); destacar(); }
 
@@ -540,6 +564,7 @@ $('fReceber').addEventListener('submit',async ev=>{
   $('fSalvar').disabled=true; $('fSalvar').textContent='Salvando…';
   const agora=new Date().toISOString(); const fotos=[]; for(const f of novasFotos) fotos.push(await API.foto(os,f));
   await API.salvar({os, ap, local, st:'aguardando', ent:agora, stDt:agora, fotos});
+  if(novasFotos.length) await criarMini(os, novasFotos[0], true);
   $('fSalvar').disabled=false; $('fSalvar').textContent='Salvar'; $('ovReceber').hidden=true;
   aba='loja'; $('tLoja').click(); selecionar(os);
 });
@@ -577,7 +602,7 @@ function loop(now){ if(anim){ const t=Math.min(1,(now-anim.s)/anim.ms),k=ease(t)
   controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); }
 if(NO_GOOGLE) $('modo').hidden=true;
 requestAnimationFrame(loop); tudo();
-async function atualizar(){ if(escolhendo || !$('ovReceber').hidden) return; try{ await API.listar(); if(selOS && !registro(selOS)) selOS=null; chips(); lista(); if(!confirmando) detalhe(); montarCaixas(); destacar(); $('sync').textContent=''; }catch(e){ $('sync').textContent='sem conexão'; } }
+async function atualizar(){ if(escolhendo || !$('ovReceber').hidden) return; try{ await API.listar(); sincMinis(); if(selOS && !registro(selOS)) selOS=null; chips(); lista(); if(!confirmando) detalhe(); montarCaixas(); destacar(); $('sync').textContent=''; }catch(e){ $('sync').textContent='sem conexão'; } }
 $('lockForm').addEventListener('submit',async ev=>{ ev.preventDefault(); const c=$('lockIn').value.trim(); if(!c) return;
   salvarCodigo(c); lerCodigo.tentou=true; $('lockBtn').disabled=true; $('lockBtn').textContent='Entrando…';
   try{ await API.listar(); $('lock').hidden=true; tudo(); }catch(e){ if(e.message!=='codigo'){ $('lockErr').textContent='Sem conexão. Tente de novo.'; $('lockErr').hidden=false; } }
