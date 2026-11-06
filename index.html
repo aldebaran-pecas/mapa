@@ -293,10 +293,12 @@ const API = NO_GOOGLE ? {
   async salvar(rec){ const i=DADOS.findIndex(r=>r.os===rec.os && !r.ret); if(i>=0) DADOS[i]={...DADOS[i],...rec}; else DADOS.push(rec);
     try{ await gas('salvar', {...rec}); }catch(e){ aviso('Não consegui salvar: '+(e.message||e)+'. Confira a internet e tente de novo.'); await API.listar(); tudo(); } return rec; },
   async foto(os, dataUrl){ const id=await gas('enviarFoto', os, dataUrl); FOTO_CACHE[id]=dataUrl; return id; },
+  async editar(osAntiga, novo){ await gas('editar', osAntiga, novo); const r=DADOS.find(x=>x.os===osAntiga&&!x.ret); if(r) Object.assign(r,novo); },
 } : {
   async listar(){ return DADOS; },
   async salvar(rec){ const i=DADOS.findIndex(r=>r.os===rec.os && !r.ret); if(i>=0) DADOS[i]={...DADOS[i],...rec}; else DADOS.push(rec); return rec; },
   async foto(os, dataUrl){ return dataUrl; },
+  async editar(osAntiga, novo){ const r=DADOS.find(x=>x.os===osAntiga&&!x.ret); if(r) Object.assign(r,novo); },
 };
 const FOTO_CACHE={};
 // ---- Miniaturas das fotos no mapa 3D ----
@@ -495,8 +497,8 @@ $('tLoja').onclick=()=>{aba='loja';$('tLoja').setAttribute('aria-selected','true
 $('tRet').onclick=()=>{aba='ret';$('tRet').setAttribute('aria-selected','true');$('tLoja').setAttribute('aria-selected','false');selOS=null;tudo();};
 
 function registro(os){ return DADOS.find(r=>r.os===os && (aba==='ret'?r.ret:!r.ret)); }
-function selecionar(os){ selOS=os; const r=registro(os); tudo(); if(r && !r.ret) focarLugar(r.local); if(innerWidth<=780) setTimeout(()=>$('detail').scrollIntoView({behavior:'smooth',block:'start'}),60); }
-let confirmando=false;
+function selecionar(os){ if(os!==selOS) editando=false; selOS=os; const r=registro(os); tudo(); if(r && !r.ret) focarLugar(r.local); if(innerWidth<=780) setTimeout(()=>$('detail').scrollIntoView({behavior:'smooth',block:'start'}),60); }
+let confirmando=false, editando=false;
 function detalhe(){ detalhe0(); carregarFotos(); }
 function detalhe0(){
   const r=selOS && registro(selOS), el=$('detail'); if(!r){ el.hidden=true; return; } el.hidden=false;
@@ -515,14 +517,33 @@ function detalhe0(){
     <div class="meta"><span>Entrou <b>${fmt(r.ent)}</b> (${ha(r.ent)})</span><span>Status desde <b>${fmt(r.stDt)}</b></span></div>
     <span class="k">Fotos da entrada</span>
     <div class="thumbs">${fotos}<label class="addph">📷<br>câmera<input type="file" accept="image/*" capture="environment" hidden id="dFotosCam"></label><label class="addph">🖼<br>galeria<input type="file" accept="image/*" multiple hidden id="dFotos"></label></div>
-    ${confirmando?`<div class="confirm">Confirmar que a OS ${esc(r.os)} foi entregue ao cliente? O aparelho sai do mapa e as fotos ficam guardadas por 30 dias.
+    ${editando?`<div class="confirm editbox"><b>Corrigir dados da OS</b>
+      <div class="field"><label for="eOS">Número da OS</label><input id="eOS" inputmode="numeric" autocomplete="off" value="${esc(r.os)}"></div>
+      <div class="field"><label for="eAp">Aparelho</label><input id="eAp" autocomplete="off" value="${esc(r.ap)}">
+        <div class="tipos" id="eTipos">${TIPOS.map(t=>`<button type="button" class="tipo${t.toLowerCase()===String(r.ap).toLowerCase()?' on':''}">${t}</button>`).join('')}</div></div>
+      <p class="err" id="eErr" hidden></p>
+      <div class="row"><button class="btn primary" id="eSalvar">Salvar correção</button><button class="btn" id="eCancelar">Cancelar</button></div></div>`
+    :confirmando?`<div class="confirm">Confirmar que a OS ${esc(r.os)} foi entregue ao cliente? O aparelho sai do mapa e as fotos ficam guardadas por 30 dias.
       <div class="row"><button class="btn danger" id="dSim">Confirmar entrega</button><button class="btn" id="dNao">Cancelar</button></div></div>`
-    :`<div class="row"><button class="btn" id="dMover">Mudar de lugar</button><button class="btn primary" id="dEntregar">Entregue ao cliente</button></div>`}`;
+    :`<div class="row"><button class="btn" id="dEditar">Editar</button><button class="btn" id="dMover">Mudar de lugar</button><button class="btn primary" id="dEntregar">Entregue ao cliente</button></div>`}`;
 }
 $('detail').addEventListener('click',async ev=>{
   const r=registro(selOS); if(!r) return;
   const sb=ev.target.closest('.stb'); if(sb && sb.dataset.st!==r.st){ r.st=sb.dataset.st; r.stDt=new Date().toISOString(); await API.salvar(r); tudo(); return; }
   const th=ev.target.closest('.thumb'); if(th){ abrirFoto(r.fotos,+th.dataset.i); return; }
+  if(ev.target.id==='dEditar'){ editando=true; confirmando=false; detalhe(); setTimeout(()=>$('eOS')?.focus(),50); return; }
+  if(ev.target.id==='eCancelar'){ editando=false; detalhe(); return; }
+  const tp=ev.target.closest('#eTipos .tipo'); if(tp){ $('eAp').value=tp.textContent; $('eTipos').querySelectorAll('.tipo').forEach(b=>b.classList.toggle('on',b===tp)); return; }
+  if(ev.target.id==='eSalvar'){
+    const os=$('eOS').value.trim(), ap=$('eAp').value.trim(), e=$('eErr');
+    const erro = !os?'Digite o número da OS.': !ap?'Digite qual é o aparelho.': (os!==r.os && ativos().some(x=>x.os===os))?`A OS ${os} já está no mapa.`:'';
+    if(erro){ e.textContent=erro; e.hidden=false; return; }
+    if(os===r.os && ap===r.ap){ editando=false; detalhe(); return; }
+    ev.target.disabled=true; ev.target.textContent='Salvando…';
+    try{ const antiga=r.os; await API.editar(antiga, {os, ap}); if(MINI[antiga]&&antiga!==os){ MINI[os]=MINI[antiga]; delete MINI[antiga]; }
+      editando=false; selOS=os; tudo(); }
+    catch(err){ e.textContent='Não consegui salvar: '+(err.message||err); e.hidden=false; ev.target.disabled=false; ev.target.textContent='Salvar correção'; }
+    return; }
   if(ev.target.id==='dEntregar'){ confirmando=true; detalhe(); }
   if(ev.target.id==='dNao'){ confirmando=false; detalhe(); }
   if(ev.target.id==='dSim'){ r.ret=new Date().toISOString(); await API.salvar(r); confirmando=false; selOS=null; tudo(); }
@@ -612,7 +633,7 @@ function loop(now){ if(anim){ const t=Math.min(1,(now-anim.s)/anim.ms),k=ease(t)
   controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); }
 if(NO_GOOGLE) $('modo').hidden=true;
 requestAnimationFrame(loop); tudo();
-async function atualizar(){ if(escolhendo || !$('ovReceber').hidden) return; try{ await API.listar(); sincMinis(); if(selOS && !registro(selOS)) selOS=null; chips(); lista(); if(!confirmando) detalhe(); montarCaixas(); destacar(); $('sync').textContent=''; }catch(e){ $('sync').textContent='sem conexão'; } }
+async function atualizar(){ if(escolhendo || !$('ovReceber').hidden) return; try{ await API.listar(); sincMinis(); if(selOS && !registro(selOS)) selOS=null; chips(); lista(); if(!confirmando && !editando) detalhe(); montarCaixas(); destacar(); $('sync').textContent=''; }catch(e){ $('sync').textContent='sem conexão'; } }
 $('lockForm').addEventListener('submit',async ev=>{ ev.preventDefault(); const c=$('lockIn').value.trim(); if(!c) return;
   salvarCodigo(c); lerCodigo.tentou=true; $('lockBtn').disabled=true; $('lockBtn').textContent='Entrando…';
   try{ await API.listar(); $('lock').hidden=true; tudo(); }catch(e){ if(e.message!=='codigo'){ $('lockErr').textContent='Sem conexão. Tente de novo.'; $('lockErr').hidden=false; } }
