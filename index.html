@@ -167,7 +167,7 @@ main{position:relative;min-width:0;min-height:0}
     <canvas id="scene" aria-label="Mapa 3D da área dos aparelhos"></canvas>
     <div class="tip" id="tip" hidden></div>
     <div class="banner" id="banner" hidden><span>Toque no lugar onde o aparelho foi guardado</span><button class="btn" id="bCancelPick">Cancelar</button></div>
-    <div class="views"><button class="btn" id="vGeral">Vista geral</button><button class="btn" id="vTopo">De cima</button><button class="btn" id="vOfic">Oficina</button></div>
+    <div class="views"><button class="btn" id="vGeral">Loja</button><button class="btn" id="vTopo">De cima</button><button class="btn" id="vOfic">Oficina</button><button class="btn" id="vExt">Área externa</button></div>
     <div class="note">Toque num aparelho para ver a OS, ou num lugar para ver o que tem nele.</div>
   </main>
 </div>
@@ -240,10 +240,11 @@ CHAO.push({id:'E1', nome:'Área 5', pos:'pé da escada (ar-condicionados)', y:BX
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
     CHAO.push({id:'F'+n, num:n++, grupo:'F', nome:'Área 6', y:BX.y, x0:X0+c*fw, x1:X0+(c+1)*fw, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:1, item:[.6,.85,.6]}); } }
 // Área externa coberta (saída pela porta de vidro). Medidas provisórias, até as fotos.
-BX.ext={x0:-4.8,x1:0,z0:7.1,z1:11.3}; BX.bancGel={x0:-4.3,x1:-2.35,z0:7.15,z1:7.85,h:.3};
+BX.ext={x0:-10.5,x1:0,z0:7.1,z1:11.3}; BX.tanque={x0:-1.35,x1:-.35,z0:7.15,z1:7.75}; BX.bancGel={x0:-4.3,x1:-2.35,z0:7.15,z1:7.85,h:.3};
 { const B=BX.bancGel, fw=(B.x1-B.x0)/3; for(let i=0;i<3;i++) CHAO.push({id:'H'+(i+1), num:i+1, grupo:'H', nome:'Área 8', y:BX.y+B.h, x0:B.x1-(i+1)*fw, x1:B.x1-i*fw, z0:B.z0, z1:B.z1, cap:1, item:[.58,1.6,.6]}); }
-{ const X0=-4.6, X1=-.2, Z0=8.15, Z1=11.1, cols=4, rows=3, fw=(X1-X0)/cols, fd=(Z1-Z0)/rows; let n=1;
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) CHAO.push({id:'I'+n, num:n++, grupo:'I', nome:'Área 9', y:BX.y, x0:X0+c*fw, x1:X0+(c+1)*fw, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:1, item:[.7,1.1,.7]}); }
+// Área 9: quadrados da coluna ao lado da bancada para a esquerda (a frente do tanque fica livre). Numeração da direita p/ esquerda, linha por linha.
+{ const X1=-3.5, cols=6, fw=1.15, Z0=8.15, Z1=11.1, rows=3, fd=(Z1-Z0)/rows; let n=1;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) CHAO.push({id:'J'+n, num:n++, grupo:'J', nome:'Área 9', y:BX.y, x0:X1-(c+1)*fw, x1:X1-c*fw, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:1, item:[.7,1.1,.7]}); }
 CHAO.push({id:'G1', nome:'Área 7', pos:'na parede (purificadores)', y:BX.y, x0:-4.75, x1:-4.2, z0:4.0, z1:5.45, cap:10, item:[.3,.6,.3]});
 const STATUS = {
   aguardando:{nome:'Aguardando verificação', css:'--st-aguardando', hex:0xe3b00e},
@@ -436,10 +437,13 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
 { const y=BX.y, X=BX.ext, B=BX.bancGel, top=y+2.3;
   const piso=new THREE.Mesh(new THREE.PlaneGeometry(X.x1-X.x0,X.z1-X.z0),new THREE.MeshStandardMaterial({color:0x6f6a60,roughness:1})); piso.rotation.x=-Math.PI/2; piso.position.set((X.x0+X.x1)/2,y-.002,(X.z0+X.z1)/2); scene.add(piso);
   const metal=new THREE.MeshStandardMaterial({color:0x8a9290,roughness:.6});
-  [[X.x0,X.z1],[X.x1,X.z1],[(X.x0+X.x1)/2,X.z1]].forEach(([x,z])=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(.1,top-y,.1),metal); p.position.set(x,(top+y)/2,z-.05); scene.add(p); });
+  [[X.x0,X.z1],[X.x1,X.z1],[(X.x0+X.x1)/2,X.z1],[X.x0+(X.x1-X.x0)*.25,X.z1],[X.x0+(X.x1-X.x0)*.75,X.z1]].forEach(([x,z])=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(.1,top-y,.1),metal); p.position.set(x,(top+y)/2,z-.05); scene.add(p); });
   const viga=(x0,z0,x1,z1)=>{ const L=Math.hypot(x1-x0,z1-z0), m=new THREE.Mesh(new THREE.BoxGeometry(L,.06,.06),metal); m.position.set((x0+x1)/2,top,(z0+z1)/2); m.rotation.y=-Math.atan2(z1-z0,x1-x0); scene.add(m); };
   viga(X.x0,X.z0,X.x1,X.z0); viga(X.x0,X.z1,X.x1,X.z1); viga(X.x0,X.z0,X.x0,X.z1); viga(X.x1,X.z0,X.x1,X.z1);
   const telhado=new THREE.Mesh(new THREE.PlaneGeometry(X.x1-X.x0,X.z1-X.z0),new THREE.MeshBasicMaterial({color:0x9aa3a0,transparent:true,opacity:.07,depthWrite:false,side:THREE.DoubleSide})); telhado.rotation.x=-Math.PI/2; telhado.position.set((X.x0+X.x1)/2,top,(X.z0+X.z1)/2); scene.add(telhado);
+  // tanque (à esquerda de quem sai pela porta de vidro)
+  { const T=BX.tanque, t=new THREE.Mesh(new THREE.BoxGeometry(T.x1-T.x0,.85,T.z1-T.z0),new THREE.MeshStandardMaterial({color:0xb8bdbb,roughness:.7})); t.position.set((T.x0+T.x1)/2,y+.425,(T.z0+T.z1)/2); scene.add(t);
+    const l=plano('TANQUE',.8,.18,{w:380,h:84,size:54,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set((T.x0+T.x1)/2,y+.86,(T.z0+T.z1)/2); scene.add(l); }
   // bancada de teste das geladeiras (logo à direita de quem sai pela porta de vidro)
   const b=new THREE.Mesh(new THREE.BoxGeometry(B.x1-B.x0,B.h,B.z1-B.z0),new THREE.MeshStandardMaterial({color:0x3a3f3d,roughness:.9})); b.position.set((B.x0+B.x1)/2,y+B.h/2,(B.z0+B.z1)/2); scene.add(b);
   const l=plano('BANCADA DE GELADEIRAS',1.5,.2,{w:760,h:94,size:54,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set((B.x0+B.x1)/2,y+.01,B.z1+.2); scene.add(l);
@@ -474,7 +478,7 @@ CHAO.forEach(z=>{
   const hb=new THREE.Mesh(new THREE.BoxGeometry(w,.9,d),M.hit.clone()); hb.position.set(z.x0+w/2,y+.45,z.z0+d/2); hb.userData.lugar=z.id; scene.add(hb); hits.push(hb); L.hit=hb;
 });
 
-[['A','ÁREA 1'],['BC','ÁREA 2'],['F','ÁREA 6'],['H','ÁREA 8'],['I','ÁREA 9']].forEach(([g,t])=>{ const zs=CHAO.filter(z=>z.grupo===g); const x0=Math.min(...zs.map(z=>z.x0)),x1=Math.max(...zs.map(z=>z.x1)),z0=Math.min(...zs.map(z=>z.z0));
+[['A','ÁREA 1'],['BC','ÁREA 2'],['F','ÁREA 6'],['H','ÁREA 8'],['J','ÁREA 9']].forEach(([g,t])=>{ const zs=CHAO.filter(z=>z.grupo===g); const x0=Math.min(...zs.map(z=>z.x0)),x1=Math.max(...zs.map(z=>z.x1)),z0=Math.min(...zs.map(z=>z.z0));
   const l=plano(t,.7,.16,{w:400,h:92,size:60,bg:'#2a302e',fg:'#fff'}); const z1=Math.max(...zs.map(z=>z.z1)); l.rotation.x=-Math.PI/2; l.rotation.z=Math.PI/2; const yy=zs[0].y||0; l.position.set(g==='F'?x1+.2:x0-.2,(g==='H'?BX.y:yy)+.008,(z0+z1)/2); scene.add(l); });
 // aparelhos (caixas coloridas)
 const itemGroup=new THREE.Group(); scene.add(itemGroup); const caixas={};
@@ -515,7 +519,8 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 let anim=null; const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 function voar(p,t){ const rm=matchMedia('(prefers-reduced-motion: reduce)').matches; anim={p0:camera.position.clone(),t0:controls.target.clone(),p1:p,t1:t,s:performance.now(),ms:rm?1:900}; }
 const vGeral=()=>voar(new THREE.Vector3(4,7.5,10.5),new THREE.Vector3(4,.4,2.2));
-const vOfic=()=>voar(new THREE.Vector3(1.6,6.2,14.2),new THREE.Vector3(-2.2,-1.2,6.6));
+const vOfic=()=>voar(new THREE.Vector3(.6,4.6,10.6),new THREE.Vector3(-1.8,-1.2,5.0));
+const vExt=()=>voar(new THREE.Vector3(-4.6,9.6,15.8),new THREE.Vector3(-5.0,-1.2,9.0));
 const vTopo=()=>voar(new THREE.Vector3(4,11.5,2.31),new THREE.Vector3(4,0,2.3));
 camera.position.set(4,7.5,10.5); controls.target.set(4,.4,2.2);
 function focarLugar(id){
@@ -685,7 +690,7 @@ canvas.addEventListener('pointermove',e=>{ const tip=$('tip'); if(e.pointerType!
   let txt; if(p.os){ const r=ativos().find(x=>x.os===p.os); txt=`OS ${r.os} · ${r.ap}`; } else { const L=LUGAR[p.lugar]; if(L.hit.material.opacity<.15) L.hit.material.opacity=.1; { const o=ocupacao(L.id); txt=`${L.desc} · ${o} aparelho${o===1?'':'s'}`; } }
   const rc=canvas.getBoundingClientRect(); tip.textContent=txt; tip.style.left=(e.clientX-rc.left)+'px'; tip.style.top=(e.clientY-rc.top)+'px'; tip.hidden=false; });
 canvas.addEventListener('pointerleave',()=>$('tip').hidden=true);
-$('vGeral').onclick=vGeral; $('vTopo').onclick=vTopo; $('vOfic').onclick=vOfic;
+$('vGeral').onclick=vGeral; $('vTopo').onclick=vTopo; $('vOfic').onclick=vOfic; $('vExt').onclick=vExt;
 
 // =================== Tema + loop ===================
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',temaMats);
