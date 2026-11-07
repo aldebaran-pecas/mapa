@@ -234,7 +234,7 @@ const CHAO = [
     CHAO.push({id:'B'+n, num:(n++)-15, grupo:'BC', nome:'Área 2', x0:x1-fw, x1, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:3, item:[0.5,0.8,0.55]}); } }
 // =================== Andar de baixo (oficina) ===================
 // A escada desce pela abertura da parede sul (x 0.45–1.45, z 3.4). Medidas aproximadas, tiradas das fotos.
-const BX = { y:-1.2, esc:{x0:0,x1:1.5,z0:3.4,z1:5.0,degraus:6}, pat:{x0:0,x1:1.6,z0:5.0,z1:7.0}, sala:{x0:-4.8,x1:0,z0:2.9,z1:7.1}, passagem:{z0:5.05,z1:5.85} }; // porta da oficina logo à direita de quem sai do último degrau
+const BX = { y:-1.2, esc:{x0:0,x1:1.5,z0:3.4,z1:5.0,degraus:6}, pat:{x0:0,x1:1.6,z0:5.0,z1:7.0}, sala:{x0:-4.8,x1:0,z0:2.9,z1:7.1}, passagem:{z0:5.05,z1:5.85}, banheiro:{x0:-1.3,z0:5.95} }; // porta da oficina logo à direita de quem sai do último degrau
 CHAO.push({id:'E1', nome:'Área 5', pos:'pé da escada (ar-condicionados)', y:BX.y, x0:.08, x1:1.52, z0:5.95, z1:6.92, cap:8, item:[.62,.6,.32]});
 { const X0=-4.75, X1=-2.35, Z0=5.55, Z1=7.05, cols=3, rows=2, fw=(X1-X0)/cols, fd=(Z1-Z0)/rows; let n=1;
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
@@ -399,7 +399,7 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
 // andar de baixo: escada, patamar dos ar-condicionados e oficina
 { const y=BX.y, hb=1.1, E=BX.esc, P=BX.pat, S=BX.sala, PS=BX.passagem;
   const piso=(x0,x1,z0,z1)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),M.floor); m.rotation.x=-Math.PI/2; m.position.set((x0+x1)/2,y,(z0+z1)/2); scene.add(m); };
-  piso(P.x0,P.x1,P.z0,P.z1); piso(S.x0,S.x1,S.z0,S.z1); piso(E.x0,E.x1,E.z0-.02,E.z1);
+  const BH=BX.banheiro; piso(P.x0,P.x1,P.z0,P.z1); piso(S.x0,S.x1,S.z0,BH.z0); piso(S.x0,BH.x0,BH.z0,S.z1); piso(E.x0,E.x1,E.z0-.02,E.z1);
   // degraus
   const n=E.degraus, dz=(E.z1-E.z0)/n, dy=-y/n;
   for(let i=0;i<n;i++){ const top=-(i+1)*dy, m=new THREE.Mesh(new THREE.BoxGeometry(E.x1-E.x0,top-y,dz),M.white); m.position.set((E.x0+E.x1)/2,(top+y)/2,E.z0+dz*(i+.5)); scene.add(m); }
@@ -411,6 +411,10 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
   // sala da oficina (passagem do patamar entra pela parede leste)
   pw([S.x1,S.z0],[S.x1,PS.z0]); pw([S.x1,PS.z1],[S.x1,S.z1]); pw([S.x1,S.z0],[S.x0,S.z0]); pw([S.x0,S.z0],[S.x0,S.z1]);
   pw([S.x0,S.z1],[-2.25,S.z1]); pw([-1.4,S.z1],[S.x1,S.z1]);
+  // banheiro (canto fechado, não usado para aparelhos)
+  pw([BH.x0,BH.z0],[BH.x0,S.z1]); pw([BH.x0,BH.z0],[S.x1,BH.z0]);
+  { const t=new THREE.Mesh(new THREE.BoxGeometry(S.x1-BH.x0,.04,S.z1-BH.z0),new THREE.MeshStandardMaterial({color:0x4a504e,roughness:1})); t.position.set((BH.x0+S.x1)/2,y+hb,(BH.z0+S.z1)/2); scene.add(t);
+    const l=plano('BANHEIRO',.9,.18,{w:420,h:84,size:54,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set((BH.x0+S.x1)/2,y+hb+.03,(BH.z0+S.z1)/2); scene.add(l); }
   
   // móveis de referência (cinza escuro)
   const movel=new THREE.MeshStandardMaterial({color:0x3a3f3d,roughness:.9});
