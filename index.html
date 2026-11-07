@@ -234,12 +234,12 @@ const CHAO = [
     CHAO.push({id:'B'+n, num:(n++)-15, grupo:'BC', nome:'Área 2', x0:x1-fw, x1, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:3, item:[0.5,0.8,0.55]}); } }
 // =================== Andar de baixo (oficina) ===================
 // A escada desce pela abertura da parede sul (x 0.45–1.45, z 3.4). Medidas aproximadas, tiradas das fotos.
-const BX = { y:-1.2, esc:{x0:0,x1:1.5,z0:3.4,z1:5.0,degraus:6}, pat:{x0:0,x1:1.9,z0:5.0,z1:6.9}, sala:{x0:-4.8,x1:0,z0:4.2,z1:8.4}, passagem:{z0:6.0,z1:6.8} };
-CHAO.push({id:'E1', nome:'Área 5', pos:'pé da escada (ar-condicionados)', y:BX.y, x0:.08, x1:1.82, z0:5.95, z1:6.82, cap:8, item:[.62,.6,.32]});
-{ const X0=-4.75, X1=-2.35, Z0=6.85, Z1=8.35, cols=3, rows=2, fw=(X1-X0)/cols, fd=(Z1-Z0)/rows; let n=1;
+const BX = { y:-1.2, esc:{x0:0,x1:1.5,z0:3.4,z1:5.0,degraus:6}, pat:{x0:0,x1:1.6,z0:5.0,z1:7.0}, sala:{x0:-4.8,x1:0,z0:2.9,z1:7.1}, passagem:{z0:5.05,z1:5.85} }; // porta da oficina logo à direita de quem sai do último degrau
+CHAO.push({id:'E1', nome:'Área 5', pos:'pé da escada (ar-condicionados)', y:BX.y, x0:.08, x1:1.52, z0:5.95, z1:6.92, cap:8, item:[.62,.6,.32]});
+{ const X0=-4.75, X1=-2.35, Z0=5.55, Z1=7.05, cols=3, rows=2, fw=(X1-X0)/cols, fd=(Z1-Z0)/rows; let n=1;
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
     CHAO.push({id:'F'+n, num:n++, grupo:'F', nome:'Área 6', y:BX.y, x0:X0+c*fw, x1:X0+(c+1)*fw, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:1, item:[.6,.85,.6]}); } }
-CHAO.push({id:'G1', nome:'Área 7', pos:'na parede (purificadores)', y:BX.y, x0:-4.75, x1:-4.2, z0:5.3, z1:6.75, cap:10, item:[.3,.6,.3]});
+CHAO.push({id:'G1', nome:'Área 7', pos:'na parede (purificadores)', y:BX.y, x0:-4.75, x1:-4.2, z0:4.0, z1:5.45, cap:10, item:[.3,.6,.3]});
 const STATUS = {
   aguardando:{nome:'Aguardando verificação', css:'--st-aguardando', hex:0xe3b00e},
   orcamento:{nome:'Verificado pelo técnico', css:'--st-orcamento', hex:0x2f6fb5},
@@ -417,12 +417,12 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
   const bloco=(x0,x1,z0,z1,h,txt)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,h,z1-z0),movel); m.position.set((x0+x1)/2,y+h/2,(z0+z1)/2); scene.add(m);
     if(txt){ const l=plano(txt,Math.min(1.1,(x1-x0)*.9),.12,{w:560,h:66,size:40,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; if(x1-x0<z1-z0) l.rotation.z=Math.PI/2; l.position.set((x0+x1)/2,y+h+.01,(z0+z1)/2); scene.add(l); } };
   bloco(-3.7,-1.6,S.z0+.04,S.z0+.74,.9,'BANCADA');
-  bloco(-.72,-.04,S.z0+.3,S.z0+2.2,.9,'BANCADA DE TESTE');
+  bloco(-.72,-.04,PS.z0-1.95,PS.z0-.03,.9,'BANCADA DE TESTE'); // encostada na porta, sem passar dela
   // portas e rótulos no chão
   const chaoTxt=(txt,x,z,w,rot)=>{ const l=plano(txt,w,.13,{w:Math.round(w*700),h:90,size:52,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; if(rot) l.rotation.z=rot; l.position.set(x,y+.01,z); scene.add(l); };
   chaoTxt('PORTA DE VIDRO',-1.82,S.z1-.2,.9);
   chaoTxt('PORTA',S.x0+.22,S.z0+.55,.42,Math.PI/2);
-  chaoTxt('OFICINA',-2.4,5.6,.9);
+  chaoTxt('OFICINA',-2.4,4.3,.9);
 }
 // porta do escritório (parede de divisória, entre a Estante 2 e a Área 1)
 { const l=plano('ENTRADA DO ESCRITÓRIO',1.0,.13,{w:760,h:100,size:56,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set(4.82,.01,.32); scene.add(l); }
@@ -495,7 +495,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 let anim=null; const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 function voar(p,t){ const rm=matchMedia('(prefers-reduced-motion: reduce)').matches; anim={p0:camera.position.clone(),t0:controls.target.clone(),p1:p,t1:t,s:performance.now(),ms:rm?1:900}; }
 const vGeral=()=>voar(new THREE.Vector3(4,7.5,10.5),new THREE.Vector3(4,.4,2.2));
-const vOfic=()=>voar(new THREE.Vector3(.6,4.6,11.8),new THREE.Vector3(-1.8,-1.2,6.2));
+const vOfic=()=>voar(new THREE.Vector3(.6,4.6,10.6),new THREE.Vector3(-1.8,-1.2,5.0));
 const vTopo=()=>voar(new THREE.Vector3(4,11.5,2.31),new THREE.Vector3(4,0,2.3));
 camera.position.set(4,7.5,10.5); controls.target.set(4,.4,2.2);
 function focarLugar(id){
