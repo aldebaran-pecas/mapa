@@ -225,7 +225,7 @@ main{position:relative;min-width:0;min-height:0}
 <script>
 // =================== Atualização automática ===================
 // Ao abrir (ou voltar para) o app, confere se há versão nova publicada e recarrega sozinho.
-const VERSAO='2026-11-07a';
+const VERSAO='2026-11-07b';
 async function checarVersao(){ try{
   const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
   const m=t.match(/const VERSAO='([^']+)'/); if(m && m[1]!==VERSAO){
@@ -266,9 +266,11 @@ BX.ext={x0:-15.6,x1:0,z0:7.1,z1:10.1}; /* varanda comprida e rasa encostada na p
 { const B=BX.bancGel, fw=(B.x1-B.x0)/3; for(let i=0;i<3;i++) CHAO.push({id:'H'+(i+1), num:i+1, grupo:'H', nome:'Área 8', y:BX.y+B.h, x0:B.x1-(i+1)*fw, x1:B.x1-i*fw, z0:B.z0, z1:B.z1, cap:1, item:[.58,1.6,.6]}); }
 // Área 9: quadrados da coluna ao lado da bancada para a esquerda (a frente do tanque fica livre). Numeração da direita p/ esquerda, linha por linha.
 // Área 9: da parede até a ponta da varanda cabem até 4 aparelhos, um na frente do outro.
-// Numeração: fileira da parede 1–10 (da bancada para a esquerda), depois 11–20, 21–30 e 31–40 (a da ponta, que pega chuva).
-{ const X1=-4.6, fw=1.05, cols=10, Z0=7.2, fd=.7, rows=4; let n=1;
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) CHAO.push({id:'L'+n, num:n++, grupo:'J', nome:'Área 9', y:BX.y, x0:X1-(c+1)*fw, x1:X1-c*fw, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:1, item:[.7,1.1,.62]}); }
+// Numeração: fileira da parede primeiro (da bancada para a esquerda), depois as da frente; a última é a da ponta, que pega chuva.
+// Sem quadrados na coluna da porta (sala de peças/limpeza) nem nos 3 lugares da parede à esquerda dela (outro tanque e parede).
+BX.var={X1:-4.6, fw:1.05, cols:10, Z0:7.2, fd:.7, rows:4, colPorta:6};
+{ const {X1,fw,cols,Z0,fd,rows,colPorta}=BX.var; let n=1;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ if(c===colPorta || (r===0 && c>colPorta)) continue; CHAO.push({id:'M'+n, num:n++, grupo:'J', nome:'Área 9', y:BX.y, x0:X1-(c+1)*fw, x1:X1-c*fw, z0:Z0+r*fd, z1:Z0+(r+1)*fd, cap:1, item:[.7,1.1,.62]}); } }
 CHAO.push({id:'G1', nome:'Área 7', pos:'na parede (purificadores)', y:BX.y, x0:-4.75, x1:-4.2, z0:4.0, z1:5.45, cap:10, item:[.3,.6,.3]});
 const STATUS = {
   aguardando:{nome:'Aguardando verificação', css:'--st-aguardando', hex:0xe3b00e},
@@ -480,6 +482,14 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
   // tanque (à esquerda de quem sai pela porta de vidro)
   { const T=BX.tanque, t=new THREE.Mesh(new THREE.BoxGeometry(T.x1-T.x0,.85,T.z1-T.z0),new THREE.MeshStandardMaterial({color:0xb8bdbb,roughness:.7})); t.position.set((T.x0+T.x1)/2,y+.425,(T.z0+T.z1)/2); scene.add(t);
     const l=plano('TANQUE',.8,.18,{w:380,h:84,size:54,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set((T.x0+T.x1)/2,y+.86,(T.z0+T.z1)/2); scene.add(l); }
+  // porta da sala de peças/limpeza, outro tanque e parede (ponta esquerda da varanda)
+  { const V=BX.var, xc=V.X1-(V.colPorta+.5)*V.fw;
+    const pl=plano('PORTA',.6,.16,{w:300,h:80,size:52,bg:'#2a302e',fg:'#fff'}); pl.rotation.x=-Math.PI/2; pl.position.set(xc,y+.01,X.z0+.45); scene.add(pl);
+    const xt=V.X1-(V.colPorta+1.5)*V.fw, t2=new THREE.Mesh(new THREE.BoxGeometry(.9,.85,.6),new THREE.MeshStandardMaterial({color:0xb8bdbb,roughness:.7})); t2.position.set(xt,y+.425,X.z0+.4); scene.add(t2);
+    const lt=plano('TANQUE',.8,.18,{w:380,h:84,size:54,bg:'#2a302e',fg:'#fff'}); lt.rotation.x=-Math.PI/2; lt.position.set(xt,y+.86,X.z0+.4); scene.add(lt);
+    const xw0=V.X1-V.cols*V.fw, xw1=V.X1-(V.colPorta+2)*V.fw;
+    const pw2=new THREE.Mesh(new THREE.BoxGeometry(xw1-xw0,altW-y,.6),new THREE.MeshStandardMaterial({color:0x8d918f,roughness:1,transparent:true,opacity:.75})); pw2.position.set((xw0+xw1)/2,(altW+y)/2,X.z0+.35); scene.add(pw2);
+    const lp=plano('PAREDE',.7,.16,{w:330,h:80,size:52,bg:'#2a302e',fg:'#fff'}); lp.rotation.x=-Math.PI/2; lp.position.set((xw0+xw1)/2,altW+.01,X.z0+.35); scene.add(lp); }
   // bancada de teste das geladeiras (logo à direita de quem sai pela porta de vidro)
   const b=new THREE.Mesh(new THREE.BoxGeometry(B.x1-B.x0,B.h,B.z1-B.z0),new THREE.MeshStandardMaterial({color:0x3a3f3d,roughness:.9})); b.position.set((B.x0+B.x1)/2,y+B.h/2,(B.z0+B.z1)/2); scene.add(b);
   const l=plano('BANCADA DE GELADEIRAS',1.5,.2,{w:760,h:94,size:54,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set((B.x0+B.x1)/2,y+.01,B.z1+.2); scene.add(l);
