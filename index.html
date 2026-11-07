@@ -211,6 +211,14 @@ main{position:relative;min-width:0;min-height:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
+// =================== Atualização automática ===================
+// Ao abrir (ou voltar para) o app, confere se há versão nova publicada e recarrega sozinho.
+const VERSAO='2026-11-06b';
+async function checarVersao(){ try{
+  const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
+  const m=t.match(/const VERSAO='([^']+)'/); if(m && m[1]!==VERSAO){
+    const k='mapa_recarregou_'+m[1]; if(!sessionStorage.getItem(k)){ sessionStorage.setItem(k,'1'); location.replace(location.pathname+'?v='+m[1]); } } }catch(e){} }
+checarVersao(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checarVersao(); });
 // =================== Configuração do local 1 (metros) ===================
 // x = leste (porta de grade em x=8), z = sul. Paredes aproximadas.
 const PLANTA = [[0,0],[8,0],[8,5.2],[4.5,5.2],[4.5,3.4],[2.6,3.4],[2.6,4.05],[1.55,4.05],[1.55,3.4],[0,3.4]]; // vão embaixo da escada entre x 1.55 e 2.6
