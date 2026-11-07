@@ -72,6 +72,15 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .item .sub{grid-column:2;font-size:13px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .loc{grid-row:1/3;grid-column:3;font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:.03em;background:var(--fg);color:var(--panel);padding:3px 8px;border-radius:4px;white-space:nowrap}
 .empty{padding:16px;color:var(--muted);font-size:14px}
+.diaBar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:14px;color:var(--muted)}
+.diaBar input{font:inherit;color:var(--fg);background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color-scheme:light dark}
+.alerta90{display:block;width:calc(100% - 32px);margin:8px 16px 0;text-align:left;font:inherit;font-size:14px;font-weight:600;color:#fff;background:#b83232;border:0;border-radius:8px;padding:8px 10px;cursor:pointer}
+.alerta90[aria-pressed="true"]{outline:2px solid var(--fg)}
+.item.velho{border-color:#d14343;animation:piscar 1.1s ease-in-out infinite}
+.item.velho .sub b{color:#e05656}
+@keyframes piscar{50%{background:rgba(209,67,67,.28)}}
+@media (prefers-reduced-motion:reduce){.item.velho{animation:none;background:rgba(209,67,67,.2)}}
+.aviso90{margin:8px 0;padding:8px 10px;border-radius:8px;background:rgba(209,67,67,.18);border:1px solid #d14343;font-size:14px}
 
 .detail{border-top:1px solid var(--line);padding:14px 16px 16px;display:grid;gap:10px;max-height:58%;overflow:auto}
 .k{font-family:var(--f-display);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -158,9 +167,11 @@ main{position:relative;min-width:0;min-height:0}
     </div>
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tLoja" aria-selected="true">Na loja</button>
-      <button class="tab" role="tab" id="tRet" aria-selected="false">Retirados (30 dias)</button>
+      <button class="tab" role="tab" id="tRet" aria-selected="false">Retirados</button>
+      <button class="tab" role="tab" id="tDia" aria-selected="false">Por dia</button>
       <button class="ordem" id="bOrdem" type="button" title="Ordem da lista: OS antigas ou novas primeiro"></button>
     </div>
+    <div class="diaBar" id="diaBar" hidden><label for="fDia">Entraram no dia</label><input type="date" id="fDia"></div>
     <div class="list" id="list"></div>
     <section class="detail" id="detail" hidden></section>
   </aside>
@@ -213,7 +224,7 @@ main{position:relative;min-width:0;min-height:0}
 <script>
 // =================== Atualização automática ===================
 // Ao abrir (ou voltar para) o app, confere se há versão nova publicada e recarrega sozinho.
-const VERSAO='2026-11-06b';
+const VERSAO='2026-11-06c';
 async function checarVersao(){ try{
   const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
   const m=t.match(/const VERSAO='([^']+)'/); if(m && m[1]!==VERSAO){
@@ -562,27 +573,37 @@ $('chips').addEventListener('click',ev=>{ const b=ev.target.closest('.chip'); if
   if(filtro.size===Object.keys(STATUS).length){ filtro=new Set([k]); } else if(filtro.has(k)){ filtro.delete(k); if(!filtro.size) filtro=new Set(Object.keys(STATUS)); } else filtro.add(k);
   tudo(); });
 let ordem=(()=>{ try{ return localStorage.getItem('mapa_ordem')||'antigas'; }catch(e){ return 'antigas'; } })();
+const DIAS_ALERTA=90;
+const velho=r=>!r.ret && r.st!=='descarte' && (hoje-new Date(r.ent))>=DIAS_ALERTA*864e5;
+const diaLocal=d=>{ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+let so90=false;
 function lista(){
   const t=$('q').value.trim().toLowerCase();
-  let rows = aba==='loja' ? ativos().filter(r=>filtro.has(r.st)) : retirados();
+  $('diaBar').hidden = aba!=='dia'; if(aba==='dia' && !$('fDia').value) $('fDia').value=diaLocal(hoje);
+  const nVelhos=ativos().filter(velho).length; let rows;
+  if(aba==='loja'){ rows=ativos().filter(r=>filtro.has(r.st)); if(so90) rows=rows.filter(velho); }
+  else if(aba==='ret') rows=retirados();
+  else rows=DADOS.filter(r=>diaLocal(r.ent)===$('fDia').value);
   if(lugarSel && !t) rows=rows.filter(r=>r.local===lugarSel);
   if(t) rows=rows.filter(r=>r.os.includes(t)||r.ap.toLowerCase().includes(t)||LUGAR[r.local].curto.toLowerCase()===t);
   const num=o=>{ const n=parseInt(String(o).replace(/\D/g,''),10); return isNaN(n)?Infinity:n; };
-  rows.sort((a,b)=> aba==='loja' ? (ordem==='antigas' ? num(a.os)-num(b.os) : num(b.os)-num(a.os)) || new Date(a.ent)-new Date(b.ent) : new Date(b.ret)-new Date(a.ret));
+  rows.sort((a,b)=> aba==='dia' ? new Date(a.ent)-new Date(b.ent) : aba==='loja' ? (ordem==='antigas' ? num(a.os)-num(b.os) : num(b.os)-num(a.os)) || new Date(a.ent)-new Date(b.ent) : new Date(b.ret)-new Date(a.ret));
   $('bOrdem').hidden = aba!=='loja'; $('bOrdem').textContent = ordem==='antigas' ? '↑ Antigas' : '↓ Novas';
-  $('list').innerHTML = rows.length ? rows.map(r=>`<button class="item${r.os===selOS?' sel':''}" data-os="${r.os}">
+  const topo = aba==='loja' && nVelhos ? `<button class="alerta90" id="b90" aria-pressed="${so90}">⚠ ${nVelhos} ${nVelhos===1?'aparelho está':'aparelhos estão'} há mais de ${DIAS_ALERTA} dias na loja — ${so90?'mostrar todos':'ver quais'}</button>` : '';
+  $('list').innerHTML = topo + (rows.length ? rows.map(r=>`<button class="item${r.os===selOS?' sel':''}${velho(r)?' velho':''}" data-os="${r.os}">
       <i class="dot" style="background:var(${STATUS[r.st].css})"></i><span class="os">OS ${esc(r.os)}</span><span class="loc">${r.ret?'Entregue':esc(LUGAR[r.local].curto)}</span>
-      <span class="sub">${esc(r.ap)} · ${r.ret?'retirado '+fmt(r.ret):STATUS[r.st].nome.toLowerCase()+' '+ha(r.stDt)}</span></button>`).join('')
-    : `<div class="empty">${lugarSel&&!t?`Nada guardado em ${esc(LUGAR[lugarSel].desc)}.`:t?`Nenhuma OS encontrada para “${esc(t)}”.`:(aba==='loja'?'Nenhum aparelho com esse status.':'Nenhum aparelho retirado nos últimos 30 dias.')}</div>`;
+      <span class="sub">${esc(r.ap)} · ${r.ret?'retirado '+fmt(r.ret):velho(r)?`<b>na loja ${ha(r.ent)}</b>`:aba==='dia'?STATUS[r.st].nome.toLowerCase():STATUS[r.st].nome.toLowerCase()+' '+ha(r.stDt)}</span></button>`).join('')
+    : `<div class="empty">${lugarSel&&!t?`Nada guardado em ${esc(LUGAR[lugarSel].desc)}.`:t?`Nenhuma OS encontrada para “${esc(t)}”.`:(aba==='loja'?'Nenhum aparelho com esse status.':aba==='ret'?'Nenhum aparelho retirado nos últimos 30 dias.':'Nenhum aparelho entrou nesse dia.')}</div>`);
 }
-$('list').addEventListener('click',ev=>{ const b=ev.target.closest('.item'); if(b) selecionar(b.dataset.os); });
+$('list').addEventListener('click',ev=>{ if(ev.target.closest('#b90')){ so90=!so90; lista(); return; } const b=ev.target.closest('.item'); if(b) selecionar(b.dataset.os); });
+$('fDia').addEventListener('change',()=>{ selOS=null; tudo(); });
 $('q').addEventListener('input',()=>{ lugarSel=null; lista(); });
 $('q').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ const f=$('list').querySelector('.item'); if(f) selecionar(f.dataset.os); }});
 $('bOrdem').onclick=()=>{ ordem = ordem==='antigas'?'novas':'antigas'; try{ localStorage.setItem('mapa_ordem',ordem); }catch(e){} lista(); };
-$('tLoja').onclick=()=>{aba='loja';$('tLoja').setAttribute('aria-selected','true');$('tRet').setAttribute('aria-selected','false');selOS=null;tudo();};
-$('tRet').onclick=()=>{aba='ret';$('tRet').setAttribute('aria-selected','true');$('tLoja').setAttribute('aria-selected','false');selOS=null;tudo();};
+const abaSet=a=>{ aba=a; [['tLoja','loja'],['tRet','ret'],['tDia','dia']].forEach(([id,k])=>$(id).setAttribute('aria-selected',String(k===a))); selOS=null; tudo(); };
+$('tLoja').onclick=()=>abaSet('loja'); $('tRet').onclick=()=>abaSet('ret'); $('tDia').onclick=()=>abaSet('dia');
 
-function registro(os){ return DADOS.find(r=>r.os===os && (aba==='ret'?r.ret:!r.ret)); }
+function registro(os){ return DADOS.find(r=>r.os===os && (aba==='ret'?r.ret: aba==='dia'? diaLocal(r.ent)===$('fDia').value : !r.ret)); }
 function selecionar(os){ if(os!==selOS) editando=false; selOS=os; const r=registro(os); tudo(); if(r && !r.ret) focarLugar(r.local); if(innerWidth<=780) setTimeout(()=>$('detail').scrollIntoView({behavior:'smooth',block:'start'}),60); }
 let confirmando=false, editando=false;
 function detalhe(){ detalhe0(); carregarFotos(); }
@@ -601,6 +622,7 @@ function detalhe0(){
     <div class="where"><span class="big">${esc(L.curto)}</span><span class="txt">${esc(L.pos)}</span></div>
     <div class="stbtns">${Object.entries(STATUS).map(([k,s])=>`<button class="stb" data-st="${k}" aria-pressed="${r.st===k}" style="color:var(${s.css})"><i class="dot" style="background:var(${s.css})"></i><span style="color:var(--fg)">${s.nome}</span></button>`).join('')}</div>
     <div class="meta"><span>Entrou <b>${fmt(r.ent)}</b> (${ha(r.ent)})</span><span>Status desde <b>${fmt(r.stDt)}</b></span></div>
+    ${velho(r)?`<div class="aviso90">⚠ Este aparelho está na loja ${ha(r.ent)} (mais de ${DIAS_ALERTA} dias). Avisar o cliente antes de passar para Descarte.</div>`:''}
     <span class="k">Fotos da entrada</span>
     <div class="thumbs">${fotos}<label class="addph">📷<br>câmera<input type="file" accept="image/*" capture="environment" hidden id="dFotosCam"></label><label class="addph">🖼<br>galeria<input type="file" accept="image/*" multiple hidden id="dFotos"></label></div>
     ${editando?`<div class="confirm editbox"><b>Corrigir dados da OS</b>
