@@ -52,6 +52,7 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .search input{width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 .search input::placeholder{color:var(--muted)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips .chip.total{background:var(--fg);color:var(--panel);border-color:var(--fg);font-weight:700}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:transparent}
 .chip[aria-pressed="false"]{opacity:.45}
 .chip b{font-family:var(--f-mono);font-size:12px}
@@ -224,7 +225,7 @@ main{position:relative;min-width:0;min-height:0}
 <script>
 // =================== Atualização automática ===================
 // Ao abrir (ou voltar para) o app, confere se há versão nova publicada e recarrega sozinho.
-const VERSAO='2026-11-06c';
+const VERSAO='2026-11-06d';
 async function checarVersao(){ try{
   const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
   const m=t.match(/const VERSAO='([^']+)'/); if(m && m[1]!==VERSAO){
@@ -333,12 +334,14 @@ const API = NO_GOOGLE ? {
   async salvar(rec){ const i=DADOS.findIndex(r=>r.os===rec.os && !r.ret); if(i>=0) DADOS[i]={...DADOS[i],...rec}; else DADOS.push(rec);
     try{ await gas('salvar', {...rec}); }catch(e){ aviso('Não consegui salvar: '+(e.message||e)+'. Confira a internet e tente de novo.'); await API.listar(); tudo(); } return rec; },
   async foto(os, dataUrl){ const id=await gas('enviarFoto', os, dataUrl); FOTO_CACHE[id]=dataUrl; return id; },
+  async excluir(os){ await gas('excluir', os); DADOS=DADOS.filter(x=>!(x.os===os&&!x.ret)); },
   async editar(osAntiga, novo){ await gas('editar', osAntiga, novo); const r=DADOS.find(x=>x.os===osAntiga&&!x.ret); if(r) Object.assign(r,novo); },
 } : {
   async listar(){ return DADOS; },
   async salvar(rec){ const i=DADOS.findIndex(r=>r.os===rec.os && !r.ret); if(i>=0) DADOS[i]={...DADOS[i],...rec}; else DADOS.push(rec); return rec; },
   async foto(os, dataUrl){ return dataUrl; },
   async editar(osAntiga, novo){ const r=DADOS.find(x=>x.os===osAntiga&&!x.ret); if(r) Object.assign(r,novo); },
+  async excluir(os){ DADOS=DADOS.filter(x=>!(x.os===os&&!x.ret)); },
 };
 const FOTO_CACHE={};
 // ---- Miniaturas das fotos no mapa 3D ----
@@ -567,9 +570,9 @@ function destacar(){ scene.updateMatrixWorld(true);
 // =================== Painel ===================
 function chips(){
   const cont={}; ativos().forEach(r=>cont[r.st]=(cont[r.st]||0)+1);
-  $('chips').innerHTML=Object.entries(STATUS).map(([k,s])=>`<button class="chip" data-st="${k}" aria-pressed="${filtro.has(k)}"><i class="dot" style="background:var(${s.css})"></i>${s.nome} <b>${cont[k]||0}</b></button>`).join('');
+  $('chips').innerHTML=`<button class="chip total" data-total="1" title="Mostrar todos os status">Total na loja <b>${ativos().length}</b></button>`+Object.entries(STATUS).map(([k,s])=>`<button class="chip" data-st="${k}" aria-pressed="${filtro.has(k)}"><i class="dot" style="background:var(${s.css})"></i>${s.nome} <b>${cont[k]||0}</b></button>`).join('');
 }
-$('chips').addEventListener('click',ev=>{ const b=ev.target.closest('.chip'); if(!b) return; const k=b.dataset.st;
+$('chips').addEventListener('click',ev=>{ const b=ev.target.closest('.chip'); if(!b) return; if(b.dataset.total){ filtro=new Set(Object.keys(STATUS)); so90=false; tudo(); return; } const k=b.dataset.st;
   if(filtro.size===Object.keys(STATUS).length){ filtro=new Set([k]); } else if(filtro.has(k)){ filtro.delete(k); if(!filtro.size) filtro=new Set(Object.keys(STATUS)); } else filtro.add(k);
   tudo(); });
 let ordem=(()=>{ try{ return localStorage.getItem('mapa_ordem')||'antigas'; }catch(e){ return 'antigas'; } })();
@@ -604,8 +607,8 @@ const abaSet=a=>{ aba=a; [['tLoja','loja'],['tRet','ret'],['tDia','dia']].forEac
 $('tLoja').onclick=()=>abaSet('loja'); $('tRet').onclick=()=>abaSet('ret'); $('tDia').onclick=()=>abaSet('dia');
 
 function registro(os){ return DADOS.find(r=>r.os===os && (aba==='ret'?r.ret: aba==='dia'? diaLocal(r.ent)===$('fDia').value : !r.ret)); }
-function selecionar(os){ if(os!==selOS) editando=false; selOS=os; const r=registro(os); tudo(); if(r && !r.ret) focarLugar(r.local); if(innerWidth<=780) setTimeout(()=>$('detail').scrollIntoView({behavior:'smooth',block:'start'}),60); }
-let confirmando=false, editando=false;
+function selecionar(os){ if(os!==selOS){ editando=false; excluindo=false; } selOS=os; const r=registro(os); tudo(); if(r && !r.ret) focarLugar(r.local); if(innerWidth<=780) setTimeout(()=>$('detail').scrollIntoView({behavior:'smooth',block:'start'}),60); }
+let confirmando=false, editando=false, excluindo=false;
 function detalhe(){ detalhe0(); carregarFotos(); }
 function detalhe0(){
   const r=selOS && registro(selOS), el=$('detail'); if(!r){ el.hidden=true; return; } el.hidden=false;
@@ -631,9 +634,12 @@ function detalhe0(){
         <div class="tipos" id="eTipos">${TIPOS.map(t=>`<button type="button" class="tipo${t.toLowerCase()===String(r.ap).toLowerCase()?' on':''}">${t}</button>`).join('')}</div></div>
       <p class="err" id="eErr" hidden></p>
       <div class="row"><button class="btn primary" id="eSalvar">Salvar correção</button><button class="btn" id="eCancelar">Cancelar</button></div></div>`
+    :excluindo?`<div class="confirm">Excluir a OS ${esc(r.os)} (${esc(r.ap)})? Use só para aparelho descartado ou cadastrado por engano. Ele sai do mapa e da lista; a linha fica guardada na aba "Excluídos" da planilha.
+      <p class="err" id="xErr" hidden></p>
+      <div class="row"><button class="btn danger" id="xSim">Excluir</button><button class="btn" id="xNao">Cancelar</button></div></div>`
     :confirmando?`<div class="confirm">Confirmar que a OS ${esc(r.os)} foi entregue ao cliente? O aparelho sai do mapa e as fotos ficam guardadas por 30 dias.
       <div class="row"><button class="btn danger" id="dSim">Confirmar entrega</button><button class="btn" id="dNao">Cancelar</button></div></div>`
-    :`<div class="row"><button class="btn" id="dEditar">Editar</button><button class="btn" id="dMover">Mudar de lugar</button><button class="btn primary" id="dEntregar">Entregue ao cliente</button></div>`}`;
+    :`<div class="row"><button class="btn" id="dEditar">Editar</button><button class="btn" id="dMover">Mudar de lugar</button><button class="btn primary" id="dEntregar">Entregue ao cliente</button><button class="btn danger" id="dExcluir">Excluir</button></div>`}`;
 }
 $('detail').addEventListener('click',async ev=>{
   const r=registro(selOS); if(!r) return;
@@ -651,6 +657,12 @@ $('detail').addEventListener('click',async ev=>{
     try{ const antiga=r.os; await API.editar(antiga, {os, ap}); if(MINI[antiga]&&antiga!==os){ MINI[os]=MINI[antiga]; delete MINI[antiga]; }
       editando=false; selOS=os; tudo(); }
     catch(err){ e.textContent='Não consegui salvar: '+(err.message||err); e.hidden=false; ev.target.disabled=false; ev.target.textContent='Salvar correção'; }
+    return; }
+  if(ev.target.id==='dExcluir'){ excluindo=true; confirmando=false; editando=false; detalhe(); return; }
+  if(ev.target.id==='xNao'){ excluindo=false; detalhe(); return; }
+  if(ev.target.id==='xSim'){ ev.target.disabled=true; ev.target.textContent='Excluindo…';
+    try{ await API.excluir(r.os); excluindo=false; selOS=null; tudo(); aviso(`OS ${r.os} excluída.`); }
+    catch(err){ const e=$('xErr'); e.textContent='Não consegui excluir: '+(err.message||err); e.hidden=false; ev.target.disabled=false; ev.target.textContent='Excluir'; }
     return; }
   if(ev.target.id==='dEntregar'){ confirmando=true; detalhe(); }
   if(ev.target.id==='dNao'){ confirmando=false; detalhe(); }
