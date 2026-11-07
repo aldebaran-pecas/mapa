@@ -403,7 +403,7 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
   // degraus
   const n=E.degraus, dz=(E.z1-E.z0)/n, dy=-y/n;
   for(let i=0;i<n;i++){ const top=-(i+1)*dy, m=new THREE.Mesh(new THREE.BoxGeometry(E.x1-E.x0,top-y,dz),M.white); m.position.set((E.x0+E.x1)/2,(top+y)/2,E.z0+dz*(i+.5)); scene.add(m); }
-  const le=plano('ESCADA (DESCE)',.62,.14,{w:420,h:70,size:46,bg:'#2a302e',fg:'#fff'}); le.rotation.x=-Math.PI/2; le.position.set((E.x0+E.x1)/2,.02,E.z0+.12); scene.add(le);
+  const le=plano('ESCADA',.7,.18,{w:340,h:84,size:54,bg:'#2a302e',fg:'#fff'}); le.rotation.x=-Math.PI/2; le.position.set((E.x0+E.x1)/2,.02,E.z0+.12); scene.add(le);
   // paredes da escada e do patamar
   parede([E.x0,E.z0],[E.x0,P.z0],y,-y+.05); parede([E.x1,E.z0],[E.x1,P.z0],y,-y+.05);
   const pw=(a,b)=>parede(a,b,y,hb);
@@ -419,14 +419,13 @@ function plano(txt,w,h,o){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),ne
   // móveis de referência (cinza escuro)
   const movel=new THREE.MeshStandardMaterial({color:0x3a3f3d,roughness:.9});
   const bloco=(x0,x1,z0,z1,h,txt)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,h,z1-z0),movel); m.position.set((x0+x1)/2,y+h/2,(z0+z1)/2); scene.add(m);
-    if(txt){ const l=plano(txt,Math.min(1.1,(x1-x0)*.9),.12,{w:560,h:66,size:40,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; if(x1-x0<z1-z0) l.rotation.z=Math.PI/2; l.position.set((x0+x1)/2,y+h+.01,(z0+z1)/2); scene.add(l); } };
-  bloco(-3.7,-1.6,S.z0+.04,S.z0+.74,.9,'BANCADA');
+    if(txt){ const l=plano(txt,1.5,.2,{w:700,h:94,size:56,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; if(x1-x0<z1-z0) l.rotation.z=Math.PI/2; l.position.set((x0+x1)/2,y+h+.01,(z0+z1)/2); scene.add(l); } };
+  bloco(-3.7,-1.6,S.z0+.04,S.z0+.74,.9,'BANCADA DE TESTE');
   bloco(-.72,-.04,PS.z0-1.95,PS.z0-.03,.9,'BANCADA DE TESTE'); // encostada na porta, sem passar dela
   // portas e rótulos no chão
   const chaoTxt=(txt,x,z,w,rot)=>{ const l=plano(txt,w,.13,{w:Math.round(w*700),h:90,size:52,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; if(rot) l.rotation.z=rot; l.position.set(x,y+.01,z); scene.add(l); };
   chaoTxt('PORTA DE VIDRO',-1.82,S.z1-.2,.9);
   chaoTxt('PORTA',S.x0+.22,S.z0+.55,.42,Math.PI/2);
-  chaoTxt('OFICINA',-2.4,4.3,.9);
 }
 // porta do escritório (parede de divisória, entre a Estante 2 e a Área 1)
 { const l=plano('ENTRADA DO ESCRITÓRIO',1.0,.13,{w:760,h:100,size:56,bg:'#2a302e',fg:'#fff'}); l.rotation.x=-Math.PI/2; l.position.set(4.82,.01,.32); scene.add(l); }
