@@ -222,7 +222,7 @@ main{position:relative;min-width:0;min-height:0}
 <script>
 // =================== Atualização automática ===================
 // Ao abrir (ou voltar para) o app, confere se há versão nova publicada e recarrega sozinho.
-const VERSAO='2026-11-24b';
+const VERSAO='2026-11-24c';
 async function checarVersao(){ try{
   const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
   const m=t.match(/const VERSAO='([^']+)'/); if(m && m[1]!==VERSAO){
@@ -243,15 +243,14 @@ const CHAO = [
   {id:'C13', nome:'Área 3', x0:0, z0:0, x1:1.89, z1:0.61, cap:20, item:[0.28,1.05,0.25]},
   {id:'D9', nome:'Área 4', x0:1.58, z0:2.53, x1:2.58, z1:4.0, cap:12, item:[0.38,0.6,0.38]},
 ];
-// Área dos frigobares (Área 1). Metade perto da entrada: 6 lugares (3 fileiras × 2 colunas) = A1, A2, A3, A4, A9, A10.
-// Metade de dentro: 4 quadrados (2 fileiras × 2 colunas) = A5–A8. Os códigos antigos foram mantidos para nenhuma OS mudar de lugar.
-{ const X1=8.0, LEN=2.38, PROF=1.58, col=2, cd=PROF/col, meio=X1-LEN/2;
-  const ids6=[[1,2],[3,4],[9,10]], fw6=(X1-meio)/3;
-  for(let j=0;j<3;j++) for(let c=0;c<col;c++){ const x1=X1-j*fw6, n=ids6[j][c];
-    CHAO.push({id:'A'+n, num:n, grupo:'A', nome:'Área 1', x0:x1-fw6, x1, z0:c*cd, z1:(c+1)*cd, cap:3, item:[0.36,0.85,0.55]}); }
-  const fw=(LEN/2)/2;
-  for(let k=0;k<2;k++) for(let c=0;c<col;c++){ const x1=meio-k*fw, n=5+k*col+c;
-    CHAO.push({id:'A'+n, num:n, grupo:'A', nome:'Área 1', x0:x1-fw, x1, z0:c*cd, z1:(c+1)*cd, cap:3, item:[0.5,0.85,0.55]}); } }
+// Área dos frigobares (Área 1), do fundo para a entrada:
+//  fileira do fundo: A7, A8 · 2ª fileira (mais comprida): A5, A6 · perto da entrada: 2 fileiras de 3 lugares (A3, A10, A4 e A1, A9, A2).
+// Os códigos antigos foram mantidos para nenhuma OS mudar de lugar.
+{ const X1=8.0, LEN=2.38, PROF=1.58, L=[.19,.19,.37,.25].map(f=>f*LEN);
+  const fil=[ [[1,9,2],3], [[3,10,4],3], [[5,6],2], [[7,8],2] ]; let x1=X1;
+  fil.forEach(([ids,n],k)=>{ const fw=L[k], cd=PROF/n;
+    ids.forEach((id,c)=>CHAO.push({id:'A'+id, num:id, grupo:'A', nome:'Área 1', x0:x1-fw, x1, z0:c*cd, z1:(c+1)*cd, cap:3, item:n===3?[0.4,0.85,0.42]:[0.5,0.85,0.55]}));
+    x1-=fw; }); }
 // Chão na frente da estante B: 8 quadrados (B16–B23), 4 colunas × 2 fileiras; em cada coluna, primeiro o da frente e depois o encostado na estante
 { const X1=7.88, LARG=2.28, Z0=2.6, Z1=4.75, cols=4, fw=LARG/cols, fd=(Z1-Z0)/2; let n=16;
   for(let c=0;c<cols;c++) for(let r=0;r<2;r++){ const x1=X1-c*fw;
