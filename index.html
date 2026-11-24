@@ -195,9 +195,6 @@ main{position:relative;min-width:0;min-height:0}
     <div class="field"><label for="fLocal">Onde foi guardado</label>
       <div class="pick"><span class="loc" id="fLocShow">—</span><button type="button" class="btn" id="fPick">Escolher no mapa</button></div>
       <select id="fLocal" aria-label="Lugar"></select></div>
-    <div class="field"><label>Fotos de como chegou</label>
-      <div class="fotobtns"><label class="btn">📷 Câmera<input id="fFotosCam" type="file" accept="image/*" capture="environment" hidden></label><label class="btn">🖼 Galeria<input id="fFotos" type="file" accept="image/*" multiple hidden></label></div>
-      <div class="thumbs" id="fThumbs"></div></div>
     <p class="err" id="fErr" hidden></p>
     <div class="row"><button class="btn primary" type="submit" id="fSalvar">Salvar</button><button class="btn" type="button" id="fCancelar">Cancelar</button></div>
   </form>
@@ -225,7 +222,7 @@ main{position:relative;min-width:0;min-height:0}
 <script>
 // =================== Atualização automática ===================
 // Ao abrir (ou voltar para) o app, confere se há versão nova publicada e recarrega sozinho.
-const VERSAO='2026-11-07c';
+const VERSAO='2026-11-24a';
 async function checarVersao(){ try{
   const t=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text());
   const m=t.match(/const VERSAO='([^']+)'/); if(m && m[1]!==VERSAO){
@@ -635,7 +632,7 @@ function detalhe0(){
     const ate=new Date(new Date(r.ret).getTime()+30*864e5);
     el.innerHTML=`<div class="d-head"><h2>${esc(r.ap)}</h2><span class="d-os">OS ${esc(r.os)}</span></div>
       <div class="meta"><span>Entrou <b>${fmt(r.ent)}</b></span><span>Retirado <b>${fmt(r.ret)}</b></span><span>Fotos guardadas até <b>${fmt(ate)}</b></span></div>
-      <span class="k">Fotos da entrada</span><div class="thumbs">${fotos||'<span class="k" style="text-transform:none;letter-spacing:0">Sem fotos.</span>'}</div>`;
+      ${fotos?`<span class="k">Fotos da entrada</span><div class="thumbs">${fotos}</div>`:''}`;
     return;
   }
   el.innerHTML=`<div class="d-head"><h2>${esc(r.ap)}</h2><span class="d-os">OS ${esc(r.os)}</span></div>
@@ -643,8 +640,7 @@ function detalhe0(){
     <div class="stbtns">${Object.entries(STATUS).map(([k,s])=>`<button class="stb" data-st="${k}" aria-pressed="${r.st===k}" style="color:var(${s.css})"><i class="dot" style="background:var(${s.css})"></i><span style="color:var(--fg)">${s.nome}</span></button>`).join('')}</div>
     <div class="meta"><span>Entrou <b>${fmt(r.ent)}</b> (${ha(r.ent)})</span><span>Status desde <b>${fmt(r.stDt)}</b></span></div>
     ${velho(r)?`<div class="aviso90">⚠ Este aparelho está na loja ${ha(r.ent)} (mais de ${DIAS_ALERTA} dias). Avisar o cliente antes de passar para Descarte.</div>`:''}
-    <span class="k">Fotos da entrada</span>
-    <div class="thumbs">${fotos}<label class="addph">📷<br>câmera<input type="file" accept="image/*" capture="environment" hidden id="dFotosCam"></label><label class="addph">🖼<br>galeria<input type="file" accept="image/*" multiple hidden id="dFotos"></label></div>
+    ${fotos?`<span class="k">Fotos da entrada</span><div class="thumbs">${fotos}</div>`:''}
     ${editando?`<div class="confirm editbox"><b>Corrigir dados da OS</b>
       <div class="field"><label for="eOS">Número da OS</label><input id="eOS" inputmode="numeric" autocomplete="off" value="${esc(r.os)}"></div>
       <div class="field"><label for="eAp">Aparelho</label><input id="eAp" autocomplete="off" value="${esc(r.ap)}">
@@ -718,11 +714,11 @@ function setLocal(id){ $('fLocal').value=id; $('fLocShow').textContent=id?LUGAR[
 let autoLocal=true;
 $('fAp').addEventListener('input',()=>{ marcaTipo(); if(autoLocal) setLocal(sugerir($('fAp').value)); });
 $('fLocal').addEventListener('change',()=>{ autoLocal=false; setLocal($('fLocal').value); });
-$('bReceber').onclick=()=>{ $('fReceber').reset(); novasFotos=[]; $('fThumbs').innerHTML=''; $('fErr').hidden=true; autoLocal=true; marcaTipo(); opcoesLocal(); setLocal(''); $('ovReceber').hidden=false; setTimeout(()=>$('fOS').focus(),50); };
+$('bReceber').onclick=()=>{ $('fReceber').reset(); novasFotos=[]; $('fErr').hidden=true; autoLocal=true; marcaTipo(); opcoesLocal(); setLocal(''); $('ovReceber').hidden=false; setTimeout(()=>$('fOS').focus(),50); };
 $('fCancelar').onclick=()=>{ $('ovReceber').hidden=true; };
 const addFotosForm=async ev=>{ for(const f of ev.target.files){ novasFotos.push(await reduzir(f)); } ev.target.value='';
   $('fThumbs').innerHTML=novasFotos.map((f,i)=>`<img class="thumb" src="${f}" alt="Foto ${i+1}">`).join(''); };
-$('fFotos').addEventListener('change',addFotosForm); $('fFotosCam').addEventListener('change',addFotosForm);
+// fotos pelo app desativadas: a equipe guarda as fotos no WhatsApp
 $('fPick').onclick=()=>{ $('ovReceber').hidden=true; iniciarEscolha(id=>{ autoLocal=false; setLocal(id); $('ovReceber').hidden=false; }, ()=>{ $('ovReceber').hidden=false; }); };
 $('fReceber').addEventListener('submit',async ev=>{
   ev.preventDefault();
